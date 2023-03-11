@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/dgraph-io/badger/v3 v3.2103.5
-	github.com/przebro/databazaar v0.0.0-20230311115505-36adbd379b42
+	github.com/przebro/databazaar v0.0.0-20230311201207-153b53e320fc
 )
 
 require (
