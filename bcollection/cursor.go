@@ -11,14 +11,17 @@ import (
 )
 
 type badgerCursor struct {
-	crsr   *badger.Iterator
-	prefix []byte
+	crsr        *badger.Iterator
+	tx          *badger.Txn
+	prefix      []byte
+	beforeFirst bool
 }
 
 func newCursor(db *badger.DB, prefix []byte) *badgerCursor {
 
 	txn := db.NewTransaction(false)
 	opts := badger.DefaultIteratorOptions
+
 	opts.PrefetchSize = 10
 
 	it := txn.NewIterator(opts)
@@ -29,7 +32,7 @@ func newCursor(db *badger.DB, prefix []byte) *badgerCursor {
 		it.Rewind()
 	}
 
-	return &badgerCursor{crsr: it, prefix: prefix}
+	return &badgerCursor{crsr: it, prefix: prefix, tx: txn, beforeFirst: true}
 
 }
 
@@ -81,13 +84,29 @@ func (c *badgerCursor) All(ctx context.Context, v interface{}) error {
 }
 func (c *badgerCursor) Next(ctx context.Context) bool {
 
+	isValid := false
+
+	if c.beforeFirst {
+		c.beforeFirst = false
+		if c.prefix != nil {
+			isValid = c.crsr.ValidForPrefix(c.prefix)
+		} else {
+			isValid = c.crsr.Valid()
+		}
+
+		return isValid
+
+	}
+
 	c.crsr.Next()
 
 	if c.prefix != nil {
-		return c.crsr.ValidForPrefix(c.prefix)
+		isValid = c.crsr.ValidForPrefix(c.prefix)
+	} else {
+		isValid = c.crsr.Valid()
 	}
 
-	return c.crsr.Valid()
+	return isValid
 }
 func (c *badgerCursor) Decode(v interface{}) error {
 
