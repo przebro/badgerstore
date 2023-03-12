@@ -95,7 +95,6 @@ func (c *badgerCursor) Next(ctx context.Context) bool {
 		}
 
 		return isValid
-
 	}
 
 	c.crsr.Next()
