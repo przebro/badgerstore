@@ -41,7 +41,14 @@ func (m *BadgerCollection) Create(ctx context.Context, document interface{}) (*r
 	}
 
 	err = m.db.Update(func(txn *badger.Txn) error {
-		return txn.Set([]byte(id), bf.Bytes())
+		defer txn.Discard()
+		if err := txn.Set([]byte(id), bf.Bytes()); err != nil {
+
+			return err
+		}
+		txn.Commit()
+		return nil
+
 	})
 
 	if err != nil {
@@ -53,6 +60,7 @@ func (m *BadgerCollection) Create(ctx context.Context, document interface{}) (*r
 func (m *BadgerCollection) Get(ctx context.Context, id string, result interface{}) error {
 
 	err := m.db.View(func(txn *badger.Txn) error {
+		defer txn.Discard()
 		item, err := txn.Get([]byte(id))
 		if err != nil {
 			return err
@@ -78,14 +86,51 @@ func (m *BadgerCollection) Update(ctx context.Context, doc interface{}) error {
 func (m *BadgerCollection) Delete(ctx context.Context, id string) error {
 	tx := m.db.NewTransaction(true)
 
-	defer tx.Commit()
-	return tx.Delete([]byte(id))
+	defer tx.Discard()
+	if err := tx.Delete([]byte(id)); err != nil {
+		return err
+	}
+	tx.Commit()
+	return nil
 }
 func (m *BadgerCollection) CreateMany(ctx context.Context, docs []interface{}) ([]result.BazaarResult, error) {
+
 	return nil, nil
 }
 func (m *BadgerCollection) BulkUpdate(ctx context.Context, docs []interface{}) error {
-	return nil
+	err := m.db.Update(func(txn *badger.Txn) error {
+
+		defer txn.Discard()
+
+		for _, doc := range docs {
+			id, _, err := collection.RequiredFields(doc)
+			if err != nil {
+
+				return err
+			}
+
+			if id == "" {
+				return collection.ErrEmptyOrInvalidID
+			}
+
+			bf := new(bytes.Buffer)
+
+			enc := gob.NewEncoder(bf)
+			if err := enc.Encode(doc); err != nil {
+				return err
+			}
+
+			if err := txn.Set([]byte(id), bf.Bytes()); err != nil {
+				return err
+			}
+		}
+
+		txn.Commit()
+		return nil
+	})
+
+	return err
+
 }
 func (m *BadgerCollection) All(ctx context.Context) (collection.BazaarCursor, error) {
 
