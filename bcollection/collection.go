@@ -98,38 +98,34 @@ func (m *BadgerCollection) CreateMany(ctx context.Context, docs []interface{}) (
 	return nil, nil
 }
 func (m *BadgerCollection) BulkUpdate(ctx context.Context, docs []interface{}) error {
-	err := m.db.Update(func(txn *badger.Txn) error {
 
-		defer txn.Discard()
+	batch := m.db.NewWriteBatch()
 
-		for _, doc := range docs {
-			id, _, err := collection.RequiredFields(doc)
-			if err != nil {
+	for _, doc := range docs {
+		id, _, err := collection.RequiredFields(doc)
+		if err != nil {
 
-				return err
-			}
-
-			if id == "" {
-				return collection.ErrEmptyOrInvalidID
-			}
-
-			bf := new(bytes.Buffer)
-
-			enc := gob.NewEncoder(bf)
-			if err := enc.Encode(doc); err != nil {
-				return err
-			}
-
-			if err := txn.Set([]byte(id), bf.Bytes()); err != nil {
-				return err
-			}
+			return err
 		}
 
-		txn.Commit()
-		return nil
-	})
+		if id == "" {
+			return collection.ErrEmptyOrInvalidID
+		}
 
-	return err
+		bf := new(bytes.Buffer)
+
+		enc := gob.NewEncoder(bf)
+		if err := enc.Encode(doc); err != nil {
+			return err
+		}
+
+		if err := batch.Set([]byte(id), bf.Bytes()); err != nil {
+			return err
+		}
+
+	}
+
+	return batch.Flush()
 
 }
 func (m *BadgerCollection) All(ctx context.Context) (collection.BazaarCursor, error) {
@@ -140,7 +136,21 @@ func (m *BadgerCollection) All(ctx context.Context) (collection.BazaarCursor, er
 }
 func (m *BadgerCollection) Count(ctx context.Context) (int64, error) {
 
-	return 0, nil
+	count := int64(0)
+	txn := m.db.NewTransaction(false)
+	defer txn.Discard()
+
+	opts := badger.DefaultIteratorOptions
+	opts.PrefetchValues = false
+	opts.AllVersions = false
+
+	it := txn.NewIterator(opts)
+	defer it.Close()
+	for it.Rewind(); it.Valid(); it.Next() {
+		count++
+	}
+
+	return count, nil
 }
 func (m *BadgerCollection) AsQuerable() (collection.QuerableCollection, error) {
 	return m, nil
@@ -149,7 +159,7 @@ func (m *BadgerCollection) Select(ctx context.Context, s selector.Expr, fld sele
 
 	ex, ok := s.(*selector.CmpExpr)
 	if !ok {
-		return nil, fmt.Errorf("unsupported selector type: %T", s)
+		return nil, fmt.Errorf("invalid selector type: %T", s)
 	}
 
 	prefix := []byte{}
