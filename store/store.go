@@ -96,3 +96,13 @@ func (store *badgerStore) Close(ctx context.Context) {
 		db.Close()
 	}
 }
+
+func (store *badgerStore) CollectionExists(ctx context.Context, name string) bool {
+
+	path := filepath.Join(store.basePath, name)
+	if _, err := os.Stat(path); err != nil {
+		return false
+	}
+
+	return true
+}

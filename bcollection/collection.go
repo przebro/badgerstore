@@ -41,14 +41,10 @@ func (m *BadgerCollection) Create(ctx context.Context, document interface{}) (*r
 	}
 
 	err = m.db.Update(func(txn *badger.Txn) error {
-		defer txn.Discard()
 		if err := txn.Set([]byte(id), bf.Bytes()); err != nil {
-
 			return err
 		}
-		txn.Commit()
 		return nil
-
 	})
 
 	if err != nil {
@@ -90,8 +86,7 @@ func (m *BadgerCollection) Delete(ctx context.Context, id string) error {
 	if err := tx.Delete([]byte(id)); err != nil {
 		return err
 	}
-	tx.Commit()
-	return nil
+	return tx.Commit()
 }
 func (m *BadgerCollection) CreateMany(ctx context.Context, docs []interface{}) ([]result.BazaarResult, error) {
 
