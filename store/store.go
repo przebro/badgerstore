@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -104,5 +105,14 @@ func (store *badgerStore) CollectionExists(ctx context.Context, name string) boo
 		return false
 	}
 
-	return true
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+
+	defer f.Close()
+
+	_, err = f.Readdirnames(1)
+	return err != io.EOF
+
 }
