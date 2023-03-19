@@ -114,5 +114,4 @@ func (store *badgerStore) CollectionExists(ctx context.Context, name string) boo
 
 	_, err = f.Readdirnames(1)
 	return err == io.EOF
-
 }
