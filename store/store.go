@@ -113,6 +113,6 @@ func (store *badgerStore) CollectionExists(ctx context.Context, name string) boo
 	defer f.Close()
 
 	_, err = f.Readdirnames(1)
-	return err != io.EOF
+	return err == io.EOF
 
 }
