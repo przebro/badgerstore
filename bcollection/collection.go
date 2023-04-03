@@ -41,10 +41,8 @@ func (m *BadgerCollection) Create(ctx context.Context, document interface{}) (*r
 	}
 
 	err = m.db.Update(func(txn *badger.Txn) error {
-		if err := txn.Set([]byte(id), bf.Bytes()); err != nil {
-			return err
-		}
-		return nil
+		err := txn.Set([]byte(id), bf.Bytes())
+		return err
 	})
 
 	if err != nil {
