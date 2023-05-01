@@ -32,8 +32,11 @@ func initInternalstore(opt store.ConnectionOptions) (store.DataStore, error) {
 	}
 
 	dir, err := os.Stat(opt.Path)
-	if err != nil || !dir.IsDir() {
-		return nil, errors.New("invalid path")
+	if err != nil {
+		return nil, err
+	}
+	if !dir.IsDir() {
+		return nil, errors.New("not a directory")
 	}
 
 	return &badgerStore{basePath: opt.Path, collections: make(map[string]*badger.DB)}, nil
